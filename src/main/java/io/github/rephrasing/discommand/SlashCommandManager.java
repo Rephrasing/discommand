@@ -7,11 +7,14 @@ import java.util.*;
 
 public final class SlashCommandManager {
 
-    private static final Map<Guild, List<SimpleSlashCommand>> commandsMap = new HashMap<>();
+    private static final Map<Guild, List<ISlashCommand>> commandsMap = new HashMap<>();
 
-    public static void registerCommands(Guild guild, Collection<SimpleSlashCommand> commands) {
+    public static void registerCommands(Guild guild, Collection<ISlashCommand> commands) {
         commandsMap.putIfAbsent(guild, new ArrayList<>());
-        commandsMap.get(guild).addAll(commands);
+        for (ISlashCommand cmd : commands) {
+            if (findCommand(guild, cmd.getName()).isPresent()) throw new IllegalArgumentException("Cannot register command \"/" + cmd.getName() + "\" because it was already registered");
+            commandsMap.get(guild).add(cmd);
+        }
         guild.updateCommands().addCommands(commands.stream().map(ISlashCommand::raw).toList()).queue();
     }
 
@@ -19,9 +22,9 @@ public final class SlashCommandManager {
         api.addEventListener(new SlashListener());
     }
 
-    protected static Optional<SimpleSlashCommand> findCommand(Guild guild, String commandName) {
-        List<SimpleSlashCommand> guildCmds = commandsMap.get(guild);
+    protected static <T extends ISlashCommand> Optional<T> findCommand(Guild guild, String commandName) {
+        List<ISlashCommand> guildCmds = commandsMap.get(guild);
         if (guildCmds.isEmpty()) return Optional.empty();
-        return guildCmds.stream().filter(cmd -> cmd.getName().equalsIgnoreCase(commandName)).findAny();
+        return guildCmds.stream().filter(cmd -> cmd.getName().equalsIgnoreCase(commandName)).map(cmd -> (T) cmd).findAny();
     }
 }
